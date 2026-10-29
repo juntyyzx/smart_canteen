@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Canteen</title>
+<style>
+:root{
+  --bg:#f6f4ee; --card:#ffffff; --ink:#1f2a24; --muted:#6b756f; --line:#e4e0d4;
+  --brand:#2f7d4f; --brand-d:#225c3a; --accent:#e9a23b; --danger:#c0392b; --ok:#2f7d4f; --warn:#b7791f;
+  --radius:14px; --shadow:0 2px 10px rgba(30,40,30,.07);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--line)}
+.bar{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-weight:800;font-size:1.15rem;color:var(--brand-d);display:flex;gap:8px;align-items:center}
+.spacer{flex:1}
+.seg{display:inline-flex;background:#eee9da;border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;padding:7px 16px;border-radius:999px;color:var(--muted);font-weight:600}
+.seg button.on{background:var(--brand);color:#fff}
+.badge{font-size:.75rem;padding:4px 10px;border-radius:999px;background:#fdf3dc;color:var(--warn);border:1px solid #f1deae;cursor:pointer}
+.badge.live{background:#e3f3e9;color:var(--ok);border-color:#bfe0cb}
+main{max-width:1180px;margin:0 auto;padding:18px 16px 90px}
+h2{margin:6px 0 12px;font-size:1.3rem}
+.btn{border:0;border-radius:10px;padding:9px 16px;background:var(--brand);color:#fff;font-weight:600}
+.btn:hover{background:var(--brand-d)}
+.btn.ghost{background:transparent;color:var(--brand-d);border:1px solid var(--line)}
+.btn.warn{background:var(--accent);color:#3a2a05}
+.btn.danger{background:var(--danger)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.sm{padding:5px 10px;font-size:.85rem}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar input[type=search],.toolbar input[type=date],.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:#fff}
+.toolbar input[type=search]{flex:1;min-width:180px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px}
+.tab{white-space:nowrap;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;color:var(--ink)}
+.tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.dish{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+.dish .pic{aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;font-size:2.8rem;background:linear-gradient(135deg,#eef5ec,#f7efd9);overflow:hidden}
+.dish .pic img{width:100%;height:100%;object-fit:cover;display:block}
+.dish .body{padding:12px;display:flex;flex-direction:column;gap:4px;flex:1}
+.dish .name{font-weight:700}
+.dish .meta{font-size:.82rem;color:var(--muted)}
+.dish .desc{font-size:.8rem;color:var(--muted)}
+.dish .foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;padding-top:8px}
+.price{font-weight:800;color:var(--brand-d)}
+.qty{display:inline-flex;align-items:center;gap:8px}
+.qty button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:#fff;font-weight:800}
+.qty button.plus{background:var(--brand);color:#fff;border-color:var(--brand)}
+.tag{font-size:.7rem;border-radius:6px;padding:2px 6px;background:#fdf3dc;color:var(--warn);align-self:flex-start}
+.dish.off{opacity:.55}
+.panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.78rem;font-weight:600}
+.pill.ok,.pill.sufficient_stock,.pill.confirmed,.pill.completed{background:#e3f3e9;color:var(--ok)}
+.pill.pending,.pill.missing_price,.pill.requiring_recipe{background:#fdf3dc;color:var(--warn)}
+.pill.cancelled{background:#f8e0dd;color:var(--danger)}
+.cartbar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px;z-index:25}
+.cartbar .in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:14px}
+.overlay{position:fixed;inset:0;background:rgba(20,30,20,.45);z-index:40;display:flex;justify-content:flex-end}
+.drawer{width:min(440px,100%);background:var(--card);height:100%;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+.modal{margin:auto;width:min(480px,92%);background:var(--card);border-radius:var(--radius);padding:22px;max-height:90vh;overflow:auto}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.field label{font-size:.82rem;color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>.field{flex:1;min-width:140px}
+.cartline{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.note{font-size:.82rem;color:var(--muted)}
+.alert{padding:10px 12px;border-radius:10px;background:#fdf3dc;color:#6b4a0a;border:1px solid #f1deae;font-size:.88rem;margin-bottom:10px}
+.alert.err{background:#f8e0dd;color:#7a1f15;border-color:#efb8b1}
+.alert.okk{background:#e3f3e9;color:#1d5a37;border-color:#bfe0cb}
+.bar-row{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:.88rem}
+.bar-row .lbl{width:170px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-row .bar-o{flex:1;background:#eee9da;border-radius:6px;height:14px;overflow:hidden}
+.bar-row .bar-i{height:100%;background:var(--brand)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px}
+.kpi{background:var(--card);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+.kpi b{display:block;font-size:1.4rem}
+.kpi span{font-size:.8rem;color:var(--muted)}
+.hidden{display:none!important}
+@media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr);gap:10px}.dish .pic{font-size:2rem}.bar-row .lbl{width:110px}}
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <div class="logo">🍽️ Smart Canteen</div>
+  <div class="seg" id="roleSeg">
+    <button data-role="student" class="on">Ученик</button>
+    <button data-role="cook">Повар</button>
+  </div>
+  <div class="spacer"></div>
+  <span class="badge" id="modeBadge" title="Нажмите, чтобы изменить адрес API">…</span>
+</div></header>
+<main id="app"></main>
+<div id="cartbar" class="cartbar hidden"><div class="in">
+  <div><b id="cartCount">0</b> поз. · <b id="cartSum">0</b></div>
+  <div class="spacer" style="flex:1"></div>
+  <button class="btn" id="openCart">Оформить предзаказ</button>
+</div></div>
+<div id="layer"></div>
+
+<script>
+/* ============ CONFIG ============ */
+// Адрес backend API по умолчанию. Для сайта в интернете замените на домен API, например 'https://api.example.com'
+const DEFAULT_API = 'http://localhost:8000';
+const CFG = { get API(){ return localStorage.getItem('sc_api') || DEFAULT_API; } };
+// Фото блюд: файл img/<slug>.jpg рядом с index.html (slug — из API, например img/plov.jpg).
+// Если у блюда в базе задан image_url, используется он. Нет фото — показывается значок категории.
+const IMG_BASE = 'img/', IMG_EXT = '.jpg';
+const BAD_IMG = new Set();
+const CUR = 'KGS';
+let LIVE = false, TOKEN = localStorage.getItem('sc_token') || '';
+
+/* ============ UTILS ============ */
+const $ = (s,r=document)=>r.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { const n = parseFloat(v); return isFinite(n)?n:0; };
+const money = v => num(v).toLocaleString('ru-RU',{maximumFractionDigits:2}) + ' ' + CUR;
+const arr = x => Array.isArray(x) ? x : (x && (x.items||x.data||x.results)) || [];
+const iso = d => { const z=new Date(d.getTime()-d.getTimezoneOffset()*60000); return z.toISOString().slice(0,10); };
+const addDays = (n)=>{const d=new Date(); d.setDate(d.getDate()+n); return iso(d);};
+const fmtDate = s => new Date(s+'T00:00:00').toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',month:'short'});
+const ls = (k,def)=>{try{return JSON.parse(localStorage.getItem(k))??def}catch{return def}};
+const lsSet = (k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const uuid = ()=> (crypto.randomUUID?crypto.randomUUID():'k'+Date.now()+Math.random().toString(16).slice(2));
+
+/* ============ API ============ */
+async function http(path, opts={}){
+  const h = {'Content-Type':'application/json', ...(opts.headers||{})};
+  if(TOKEN) h.Authorization = 'Bearer '+TOKEN;
+  let r;
+  try{ r = await fetch(CFG.API+path, {...opts, headers:h}); }
+  catch{ const e=new Error('Нет связи с сервером. Проверьте интернет и адрес API.'); e.status=0; throw e; }
+  if(!r.ok){
+    let m = r.statusText, code='';
+    try{
+      const j = await r.json(), er = j.error;
+      if(er){
+        code = er.code||''; m = er.message||m;
+        if(Array.isArray(er.details)) m += ': ' + er.details.map(d=>d.message||JSON.stringify(d)).join('; ');
+      }else if(j.detail){ m = typeof j.detail==='string'?j.detail:JSON.stringify(j.detail); }
+    }catch{}
+    if(r.status===401 && TOKEN){
+      TOKEN=''; localStorage.removeItem('sc_token'); S.authed=false; m='Сессия истекла — войдите снова.';
+      if(S.role==='cook') setTimeout(renderCook,0);
+    }
+    const e = new Error(m); e.status=r.status; e.code=code; throw e;
+  }
+  if(r.status===204) return null;
+  const j = await r.json();
+  return (j && typeof j==='object' && 'data' in j) ? j.data : j;   // все ответы бэкенда: {data, meta}
+}
+async function detectLive(){
+  try{
+    const c = new AbortController(); const t=setTimeout(()=>c.abort(),2500);
+    const r = await fetch(CFG.API+'/health',{signal:c.signal}); clearTimeout(t);
+    LIVE = r.ok;
+  }catch{ LIVE=false; }
+  const b=$('#modeBadge');
+  b.textContent = LIVE ? '● API подключён' : '○ Демо-режим (API недоступен)';
+  b.className = 'badge'+(LIVE?' live':'');
+}
+
+/* ============ DEMO DATA (универсальное демонстрационное меню, цены условные, KGS) ============ */
+const CATS = [
+ {id:1,slug:'hot-dishes',name:'Горячие блюда',icon:'🍲'},
+ {id:2,slug:'soups',name:'Супы',icon:'🥣'},
+ {id:3,slug:'sides',name:'Гарниры',icon:'🍚'},
+ {id:4,slug:'salads',name:'Салаты',icon:'🥗'},
+ {id:5,slug:'bakery-snacks',name:'Выпечка и перекусы',icon:'🥟'},
+ {id:6,slug:'desserts',name:'Десерты и сладости',icon:'🍰'},
+ {id:7,slug:'hot-drinks',name:'Чай и горячие напитки',icon:'☕'},
+ {id:8,slug:'cold-drinks',name:'Холодные напитки',icon:'🥤'},
+ {id:9,slug:'sauces-extras',name:'Соусы и дополнения',icon:'🧂'},
+ {id:10,slug:'extra-items',name:'Дополнительные товары',icon:'🍎'},
+];
+// "название|цена|порция"
+const RAW = {
+1:`Плов|150|300 г
+Курица с рисом|140|300 г
+Лагман|130|350 г
+Макароны с курицей|130|300 г
+Куриная котлета|80|100 г
+Говяжья котлета|90|100 г
+Курица с картофелем|140|300 г
+Пельмени|120|250 г
+Манты|130|250 г
+Гречка с курицей|135|300 г
+Жаркое с мясом и картофелем|160|320 г
+Омлет|70|150 г
+Овощное рагу|90|250 г`,
+2:`Куриный суп с лапшой|70|300 мл
+Борщ|80|300 мл
+Шорпо|110|350 мл
+Чечевичный суп|65|300 мл
+Овощной суп|60|300 мл
+Молочный суп с макаронами|55|250 мл`,
+3:`Картофельное пюре|45|150 г
+Запечённый картофель|50|150 г
+Рис|35|150 г
+Гречка|35|150 г
+Макароны|30|150 г
+Овощи на пару|50|150 г
+Тушёная капуста|40|150 г`,
+4:`Овощной салат|45|100 г
+Салат из капусты и моркови|35|100 г
+Салат из огурцов и помидоров|45|100 г
+Винегрет|40|100 г
+Салат с курицей|85|150 г`,
+5:`Самса с мясом|60|1 шт
+Самса с картофелем|40|1 шт
+Пирожок с картофелем|30|1 шт
+Пирожок с мясом|40|1 шт
+Сосиска в тесте|55|1 шт
+Сэндвич с курицей|90|1 шт
+Тост с сыром|50|1 шт
+Пицца порционная|80|1 порция
+Блины|50|2 шт
+Лепёшка|20|1 шт`,
+6:`Медовик|70|1 порция
+Наполеон|70|1 порция
+Бисквитный торт порционный|75|1 порция
+Кекс|40|1 шт
+Печенье|25|1 порция
+Вафли|30|1 порция
+Пончик|35|1 шт
+Чизкейк порционный|90|1 порция
+Мороженое|50|1 порция
+Шоколадный батончик|55|1 шт
+Конфеты|30|порция / упаковка
+Мармелад|45|упаковка
+Зефир|35|порция / упаковка
+Халва|35|порция / упаковка
+Сухофрукты|40|порция`,
+7:`Чёрный чай|15|200 мл
+Зелёный чай|15|200 мл
+Чай с лимоном|20|200 мл
+Чай с молоком|25|200 мл
+Чай с мятой|20|200 мл
+Имбирный чай|30|200 мл
+Кофе американо|50|200 мл
+Кофе с молоком|60|200 мл
+Какао|45|200 мл
+Горячий шоколад|65|200 мл`,
+8:`Компот|30|200 мл
+Морс|35|200 мл
+Лимонад домашний|40|250 мл
+Минеральная вода|40|500 мл
+Питьевая вода|25|500 мл
+Сок в упаковке|45|200 мл
+Яблочный сок|50|200 мл
+Апельсиновый сок|55|200 мл
+Холодный чай|35|250 мл
+Айран|40|250 мл`,
+9:`Кетчуп|8|порция
+Майонез|8|порция
+Сметанный соус|10|порция
+Чесночный соус|10|порция
+Сырный соус|12|порция
+Томатный соус|8|порция
+Горчица|8|порция
+Сливочное масло|15|порция
+Сметана|15|порция
+Сыр дополнительная порция|25|порция
+Хлеб|5|1 ломтик
+Лепёшка дополнительная порция|20|1 шт
+Лимон|8|долька
+Сахар|3|порция
+Молоко для чая и кофе|10|порция`,
+10:`Яйцо варёное|20|1 шт
+Йогурт|45|1 шт
+Творожный десерт|55|1 шт
+Орехи|50|порция
+Фрукты сезонные|40|порция
+Яблоко|25|1 шт
+Банан|30|1 шт
+Груша|30|1 шт`
+};
+function buildDemoMenu(){
+  let id=0; const out=[];
+  for(const c of CATS){
+    RAW[c.id].split('\n').forEach(line=>{
+      const [name,price,portion]=line.split('|'); id++;
+      out.push({id, name, slug:SLUG_BY_NAME[name]||('dish-'+id), description:'Демонстрационная позиция', category_id:c.id,
+        sale_price:price, serving:portion, is_available:true, is_preorder_only:false, image_url:null, is_demo:true});
+    });
+  }
+  return out;
+}
+const SLUG_BY_NAME = {"Плов": "plov", "Курица с рисом": "chicken-rice", "Лагман": "lagman", "Макароны с курицей": "pasta-chicken", "Куриная котлета": "chicken-cutlet", "Говяжья котлета": "beef-cutlet", "Курица с картофелем": "chicken-potato", "Пельмени": "pelmeni", "Манты": "manty", "Гречка с курицей": "buckwheat-chicken", "Жаркое с мясом и картофелем": "zharkoe", "Омлет": "omelet", "Овощное рагу": "veg-ragu", "Куриный суп с лапшой": "chicken-noodle-soup", "Борщ": "borscht", "Шорпо": "shorpo", "Чечевичный суп": "lentil-soup", "Овощной суп": "veg-soup", "Молочный суп с макаронами": "milk-pasta-soup", "Картофельное пюре": "mashed-potato", "Запечённый картофель": "baked-potato", "Рис": "rice-side", "Гречка": "buckwheat-side", "Макароны": "pasta-side", "Овощи на пару": "steamed-veg", "Тушёная капуста": "braised-cabbage", "Овощной салат": "veg-salad", "Салат из капусты и моркови": "cabbage-carrot-salad", "Салат из огурцов и помидоров": "cucumber-tomato-salad", "Винегрет": "vinaigrette", "Салат с курицей": "chicken-salad", "Самса с мясом": "samsa-meat", "Самса с картофелем": "samsa-potato", "Пирожок с картофелем": "pirozhok-potato", "Пирожок с мясом": "pirozhok-meat", "Сосиска в тесте": "sausage-in-dough", "Сэндвич с курицей": "chicken-sandwich", "Тост с сыром": "cheese-toast", "Пицца порционная": "pizza-slice", "Блины": "blini", "Лепёшка": "lepeshka", "Медовик": "medovik", "Наполеон": "napoleon", "Бисквитный торт порционный": "sponge-cake", "Кекс": "cupcake", "Печенье": "cookies", "Вафли": "waffles", "Пончик": "donut", "Чизкейк порционный": "cheesecake", "Мороженое": "ice-cream", "Шоколадный батончик": "choco-bar", "Конфеты — порция": "candy-portion", "Конфеты — упаковка": "candy-pack", "Мармелад — упаковка": "marmalade-pack", "Зефир — порция": "zefir-portion", "Зефир — упаковка": "zefir-pack", "Халва — порция": "halva-portion", "Халва — упаковка": "halva-pack", "Сухофрукты — порция": "dried-fruit-portion", "Чёрный чай": "black-tea", "Зелёный чай": "green-tea", "Чай с лимоном": "lemon-tea", "Чай с молоком": "milk-tea", "Чай с мятой": "mint-tea", "Имбирный чай": "ginger-tea", "Кофе американо": "americano", "Кофе с молоком": "coffee-milk", "Какао": "cocoa", "Горячий шоколад": "hot-chocolate", "Компот": "kompot", "Морс": "mors", "Лимонад домашний": "lemonade", "Минеральная вода": "mineral-water", "Питьевая вода": "drinking-water", "Сок в упаковке": "juice-pack", "Яблочный сок": "apple-juice", "Апельсиновый сок": "orange-juice", "Холодный чай": "cold-tea", "Айран": "ayran", "Кетчуп": "ketchup", "Майонез": "mayonnaise", "Сметанный соус": "sour-cream-sauce", "Чесночный соус": "garlic-sauce", "Сырный соус": "cheese-sauce", "Томатный соус": "tomato-sauce", "Горчица": "mustard", "Сливочное масло — порция": "butter-portion", "Сметана — порция": "sour-cream-portion", "Сыр — дополнительная порция": "cheese-extra", "Хлеб": "bread-slice", "Лепёшка — дополнительная порция": "lepeshka-extra", "Лимон — долька": "lemon-slice", "Сахар — порция": "sugar-portion", "Молоко для чая и кофе": "milk-for-tea", "Яйцо варёное": "boiled-egg", "Йогурт": "yogurt", "Творожный десерт": "curd-dessert", "Орехи — порция": "nuts-portion", "Фрукты сезонные — порция": "seasonal-fruit", "Яблоко": "apple", "Банан": "banana", "Груша": "pear", "Конфеты": "candy-portion", "Мармелад": "marmalade-pack", "Зефир": "zefir-portion", "Халва": "halva-portion", "Сухофрукты": "dried-fruit-portion", "Сливочное масло": "butter-portion", "Сметана": "sour-cream-portion", "Сыр дополнительная порция": "cheese-extra", "Лепёшка дополнительная порция": "lepeshka-extra", "Лимон": "lemon-slice", "Сахар": "sugar-portion", "Орехи": "nuts-portion", "Фрукты сезонные": "seasonal-fruit"};
+const DEMO_MENU = buildDemoMenu();
+const dishByName = n => DEMO_MENU.find(d=>d.name===n);
+
+/* Демо-рецептуры и склад (г на порцию). Условные значения, не нормативы. Нужны только в демо-режиме. */
+const DEMO_ING = { // id: [название, цена за кг (KGS), упаковка кг, остаток кг]
+  rice:['Рис',90,25,10], meat:['Мясо (говядина/баранина)',650,5,4], carrot:['Морковь',30,10,6], onion:['Лук',25,10,5],
+  oil:['Масло растительное',130,5,2], chicken:['Курица',280,10,5], potato:['Картофель',35,25,20], egg:['Яйцо (шт., 1 шт = 55 г)',null,0.55,0.5],
+  cabbage:['Капуста',28,10,3], noodle:['Лапша',70,10,2]
+};
+const DEMO_REC = {
+ 'Плов':{rice:100,meat:100,carrot:60,onion:20,oil:15},
+ 'Курица с рисом':{chicken:150,rice:100,onion:15,oil:10},
+ 'Курица с картофелем':{chicken:150,potato:200,onion:15,oil:10},
+ 'Лагман':{meat:80,noodle:100,carrot:30,onion:20,potato:40,oil:10},
+ 'Картофельное пюре':{potato:170,oil:8},
+ 'Рис':{rice:60,oil:5},
+ 'Салат из капусты и моркови':{cabbage:80,carrot:30,oil:8},
+ 'Омлет':{egg:110,oil:5}
+};
+
+/* ============ STATE ============ */
+const S = {
+  role:'student', cat:'all', q:'', menu:[], cats:[], cart:ls('sc_cart',{}), orderDate:addDays(1),
+  cookTab:'orders', cookDate:addDays(1), authed:!!TOKEN, lastOrder:null, pendingKey:null
+};
+const catName = id => (S.cats.find(c=>c.id==id)||{}).name||'';
+const catIcon = id => (S.cats.find(c=>c.id==id)||{}).icon||'🍽️';
+
+const UNIT_RU = {g:'г',kg:'кг',ml:'мл',l:'л',pcs:'шт',portion:'порция'};
+const fmtServing = (size,unit)=> size==null ? (UNIT_RU[unit]||unit||'') : num(size).toLocaleString('ru-RU',{maximumFractionDigits:3})+' '+(UNIT_RU[unit]||unit||'');
+const PSTAT_RU = {ok:'Купить',sufficient_stock:'Хватает на складе',missing_price:'Нет цены',requiring_recipe:'Нет рецептуры'};
+const STATUS_RU = {pending:'Ожидает',confirmed:'Подтверждён',completed:'Выдан',cancelled:'Отменён'};
+
+/* ============ DATA LAYER (live ⇄ demo) ============ */
+const Data = {
+  async load(){
+    if(LIVE){
+      try{
+        const cats = arr(await http('/api/categories'));
+        const menu = arr(await http('/api/menu'));
+        const icons = Object.fromEntries(CATS.map(c=>[c.slug,c.icon]));
+        S.cats = cats.map(c=>({id:c.id,slug:c.slug,name:c.name,icon:icons[c.slug]||'🍽️'}));
+        S.menu = menu.map(d=>({id:d.id,name:d.name,slug:d.slug,description:d.description||'',category_id:(d.category&&d.category.id)||d.category_id,
+          sale_price:d.sale_price, serving:fmtServing(d.serving_size,d.serving_unit),
+          is_available:d.is_available!==false, is_preorder_only:!!d.is_preorder_only, image_url:d.image_url, is_demo:!!d.is_demo}));
+        return;
+      }catch(e){ console.warn('live load failed',e); LIVE=false; await detectLive(); }
+    }
+    S.cats=CATS; S.menu=DEMO_MENU;
+  },
+  async createOrder(payload){
+    if(LIVE){
+      return http('/api/orders',{method:'POST',headers:{'Idempotency-Key':payload.key},body:JSON.stringify({
+        order_date:payload.date, idempotency_key:payload.key, customer_ref:String(payload.customer||'').slice(0,64)||null,
+        items:payload.items.map(i=>({dish_id:i.dish_id,quantity:i.quantity,notes:i.notes||null}))})});
+    }
+    const orders=ls('sc_orders',[]);
+    const ex=orders.find(o=>o.key===payload.key); if(ex) return ex;
+    const items=payload.items.map(i=>{const d=S.menu.find(x=>x.id===i.dish_id);return {dish_id:d.id,name:d.name,quantity:i.quantity,unit_sale_price:d.sale_price,line_total:num(d.sale_price)*i.quantity}});
+    const o={id:Date.now(),key:payload.key,public_order_number:'SC-'+String(orders.length+1).padStart(4,'0'),order_date:payload.date,status:'confirmed',
+      customer:payload.customer,items,total_amount:items.reduce((s,i)=>s+i.line_total,0)};
+    orders.push(o); lsSet('sc_orders',orders); return o;
+  },
+  async orders(date){
+    if(LIVE) return arr(await http('/api/orders?limit=500&date='+date));
+    return ls('sc_orders',[]).filter(o=>o.order_date===date);
+  },
+  async setStatus(o, action){   // action: cancel | confirm | complete
+    if(LIVE) return http(`/api/orders/${o.id}/${action}`,{method:'PATCH'});
+    const all=ls('sc_orders',[]); const x=all.find(a=>a.id===o.id);
+    if(x) x.status = {cancel:'cancelled',confirm:'confirmed',complete:'completed'}[action]; lsSet('sc_orders',all);
+  },
+  async summary(date){
+    if(LIVE){
+      const r=await http('/api/orders/summary?date='+date); const rows=arr(r.dishes||r.rows||r);
+      return rows.map(x=>({name:x.dish_name||x.name||('#'+x.dish_id),portions:x.portions??x.total_portions??x.quantity??0,revenue:x.revenue??x.total_amount}));
+    }
+    const m={}; (await Data.orders(date)).filter(o=>o.status!=='cancelled').forEach(o=>o.items.forEach(i=>{
+      m[i.name]=m[i.name]||{name:i.name,portions:0,revenue:0}; m[i.name].portions+=i.quantity; m[i.name].revenue+=i.line_total}));
+    return Object.values(m).sort((a,b)=>b.portions-a.portions);
+  },
+  async procurement(date){
+    if(LIVE) return http('/api/procurement-plan/preview',{method:'POST',body:JSON.stringify({date})});
+    // ДЕМО-расчёт (в режиме API это делает бэкенд). Целые г / тыйыны, потолок по упаковке.
+    const need={}, warn=[];
+    (await Data.summary(date)).forEach(r=>{
+      const rec=DEMO_REC[r.name]; if(!rec){ warn.push({dish:r.name,status:'requiring_recipe'}); return; }
+      for(const [ing,g] of Object.entries(rec)) need[ing]=(need[ing]||0)+g*r.portions;
+    });
+    let total=0, unknown=false;
+    const items=Object.entries(need).map(([id,g])=>{
+      const [name,priceKg,pack,stockKg]=DEMO_ING[id];
+      const stock=Math.round(stockKg*1000), packG=Math.round(pack*1000);
+      const net=Math.max(0,g-stock), cnt=net? Math.ceil(net/packG):0, buy=cnt*packG;
+      const cost = priceKg==null?null:Math.round(buy/1000*priceKg*100)/100;
+      if(cost==null) unknown=true; else total+=cost;
+      return {ingredient_name:name,unit:'g',required_quantity:g,available_quantity:stock,purchase_quantity:buy,package_size:packG,package_count:cnt,estimated_cost:cost,status:cost==null?'missing_price':'ok'};
+    });
+    return {plan_date:date,items,total_estimated_cost:total,total_is_complete:!unknown,warnings:warn,is_preview:true,demo:true};
+  },
+  async saveProduction(p){
+    if(LIVE) return http('/api/production',{method:'POST',body:JSON.stringify({...p,idempotency_key:uuid()})});
+    const a=ls('sc_prod',[]); a.push(p); lsSet('sc_prod',a);
+  },
+  async saveWaste(w){
+    if(LIVE){ const {estimated_cost,...body}=w; return http('/api/waste',{method:'POST',body:JSON.stringify({...body,idempotency_key:uuid()})}); }
+    const a=ls('sc_waste',[]); a.push(w); lsSet('sc_waste',a);
+  },
+  async analytics(from,to){
+    if(LIVE){
+      const demo = S.includeDemo ? '&include_demo=true' : '';
+      const [p,w]=await Promise.all([http(`/api/analytics/popularity?from=${from}&to=${to}${demo}`),http(`/api/analytics/waste?from=${from}&to=${to}${demo}`)]);
+      const notes=[];
+      if(p.history&&p.history.message) notes.push(p.history.message);
+      else if(p.history&&p.history.insufficient_history) notes.push(`Мало истории (${p.history.history_days} дн. из ${p.history.min_history_days}) — выводы ненадёжны.`);
+      if((p.history&&p.history.contains_demo_data)||w.contains_demo_data) notes.push('В расчёт включены демонстрационные данные.');
+      if(w.cost_is_complete===false) notes.push('Стоимость отходов неполная: у части ингредиентов нет цены.');
+      return {pop:{items:p.dishes||[],notes},
+              waste:{total_cost:w.total_waste_cost,waste_percent:w.waste_percent_of_prepared,total_portions:w.total_wasted_portions,items:w.by_dish||[]}};
+    }
+    const orders=ls('sc_orders',[]).filter(o=>o.order_date>=from&&o.order_date<=to&&o.status!=='cancelled');
+    const m={}; orders.forEach(o=>o.items.forEach(i=>{m[i.name]=m[i.name]||{dish_name:i.name,portions_sold:0,revenue:0};m[i.name].portions_sold+=i.quantity;m[i.name].revenue+=i.line_total}));
+    const waste=ls('sc_waste',[]).filter(w=>w.waste_date>=from&&w.waste_date<=to);
+    const prod=ls('sc_prod',[]).filter(p=>p.production_date>=from&&p.production_date<=to);
+    const prepared=prod.reduce((s,p)=>s+num(p.prepared_portions),0), disc=waste.reduce((s,w)=>s+num(w.quantity),0);
+    return {pop:{items:Object.values(m).sort((a,b)=>b.portions_sold-a.portions_sold),orders:orders.length,notes:[]},
+      waste:{total_cost:waste.reduce((s,w)=>s+num(w.estimated_cost||0),0),total_portions:disc,prepared_portions:prepared,waste_percent:prepared?disc/prepared*100:null,
+        items:waste}};
+  },
+  async login(u,p){
+    if(!LIVE){ S.authed=true; return; }
+    const r=await http('/api/auth/login',{method:'POST',body:JSON.stringify({username:u,password:p})});
+    TOKEN=r.access_token||r.token; localStorage.setItem('sc_token',TOKEN); S.authed=true; S.user=r.username; S.userRole=r.role;
+  }
+};
+
+/* ============ CART ============ */
+const cartItems = ()=>Object.entries(S.cart).map(([id,q])=>({dish:S.menu.find(d=>d.id==id),q})).filter(x=>x.dish&&x.q>0);
+const cartCount = ()=>cartItems().reduce((s,x)=>s+x.q,0);
+const cartSum = ()=>cartItems().reduce((s,x)=>s+num(x.dish.sale_price)*x.q,0);
+function setQty(id,q){ S.pendingKey=null; q=Math.max(0,Math.min(50,q)); if(q) S.cart[id]=q; else delete S.cart[id]; lsSet('sc_cart',S.cart); updateCartBar(); }
+function updateCartBar(){
+  $('#cartbar').classList.toggle('hidden', S.role!=='student'||cartCount()===0);
+  $('#cartCount').textContent=cartCount(); $('#cartSum').textContent=money(cartSum());
+}
+
+/* ============ STUDENT VIEW ============ */
+function renderStudent(){
+  const dates=[0,1,2,3,4].map(n=>addDays(n));
+  $('#app').innerHTML=`
+   <h2>Что хотите на ${esc(fmtDate(S.orderDate))}?</h2>
+   <div class="alert">Предзаказ помогает столовой готовить ровно столько, сколько нужно, — меньше выброшенной еды. Выберите день и блюда.</div>
+   <div class="toolbar">
+     <select id="odate">${dates.map(d=>`<option value="${d}" ${d===S.orderDate?'selected':''}>${d===addDays(0)?'Сегодня':d===addDays(1)?'Завтра':fmtDate(d)}</option>`).join('')}</select>
+     <input type="search" id="q" placeholder="Поиск блюда…" value="${esc(S.q)}">
+   </div>
+   <div class="tabs" id="tabs"></div>
+   <div class="grid" id="grid"></div>`;
+  $('#odate').onchange=e=>{S.orderDate=e.target.value;renderStudent()};
+  $('#q').oninput=e=>{S.q=e.target.value;drawGrid()};
+  drawTabs(); drawGrid(); updateCartBar();
+}
+function drawTabs(){
+  $('#tabs').innerHTML=[{id:'all',name:'Всё меню',icon:'📋'},...S.cats].map(c=>
+    `<button class="tab ${S.cat==c.id?'on':''}" data-cat="${c.id}">${c.icon} ${esc(c.name)}</button>`).join('');
+  $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{S.cat=b.dataset.cat==='all'?'all':+b.dataset.cat;drawTabs();drawGrid()});
+}
+function imgSrc(d){
+  const s = d.image_url || (d.slug ? IMG_BASE + d.slug + IMG_EXT : '');
+  return s && !BAD_IMG.has(s) ? s : '';
+}
+function picHtml(d){
+  const s = imgSrc(d), fb = catIcon(d.category_id);
+  if(!s) return esc(fb);   // фото нет — значок категории
+  return `<img src="${esc(s)}" alt="${esc(d.name)}" loading="lazy" data-fb="${esc(fb)}" onerror="BAD_IMG.add(this.getAttribute('src'));this.replaceWith(document.createTextNode(this.dataset.fb))">`;
+}
+function dishCard(d){
+  const q=S.cart[d.id]||0, off=!d.is_available;
+  return `<div class="dish ${off?'off':''}">
+    <div class="pic">${picHtml(d)}</div>
+    <div class="body">
+      <div class="name">${esc(d.name)}</div>
+      <div class="meta">${esc(catName(d.category_id))}${d.serving?' · '+esc(d.serving):''}</div>
+      ${d.is_preorder_only?'<span class="tag">Только по предзаказу</span>':''}
+      ${off?'<span class="tag">Недоступно</span>':''}
+      <div class="foot"><span class="price">${money(d.sale_price)}</span>
+      ${off?'':q? `<span class="qty"><button data-m="${d.id}">−</button><b>${q}</b><button class="plus" data-p="${d.id}">+</button></span>`
+               : `<button class="btn sm" data-p="${d.id}">В заказ</button>`}</div>
+    </div></div>`;
+}
+function drawGrid(){
+  const q=S.q.trim().toLowerCase();
+  const list=S.menu.filter(d=>(S.cat==='all'||d.category_id==S.cat)&&(!q||d.name.toLowerCase().includes(q)));
+  const g=$('#grid');
+  g.innerHTML=list.length?list.map(dishCard).join(''):'<p class="note">Ничего не найдено.</p>';
+  g.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{setQty(b.dataset.p,(S.cart[b.dataset.p]||0)+1);drawGrid()});
+  g.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{setQty(b.dataset.m,(S.cart[b.dataset.m]||0)-1);drawGrid()});
+}
+function openCart(){
+  const items=cartItems();
+  const l=$('#layer');
+  l.innerHTML=`<div class="overlay" id="ov"><div class="drawer">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Ваш предзаказ</h2><button class="btn ghost sm" id="x">✕</button></div>
+    <div class="note">Дата: <b>${esc(fmtDate(S.orderDate))}</b></div>
+    <div>${items.map(({dish,q})=>`<div class="cartline"><div><b>${esc(dish.name)}</b><div class="note">${money(dish.sale_price)} × ${q}</div></div>
+      <span class="qty"><button data-m="${dish.id}">−</button><b>${q}</b><button class="plus" data-p="${dish.id}">+</button></span></div>`).join('')||'<p class="note">Корзина пуста</p>'}</div>
+    <div class="field"><label>Имя / класс (необязательно)</label><input id="who" placeholder="Например, 8Б" value="${esc(localStorage.getItem('sc_who')||'')}"></div>
+    <div style="font-size:1.1rem">Итого: <b>${money(cartSum())}</b></div>
+    <div id="err"></div>
+    <button class="btn" id="send" ${items.length?'':'disabled'}>Подтвердить предзаказ</button>
+  </div></div>`;
+  $('#x').onclick=()=>l.innerHTML=''; $('#ov').onclick=e=>{if(e.target.id==='ov')l.innerHTML=''};
+  l.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{setQty(b.dataset.p,(S.cart[b.dataset.p]||0)+1);openCart();drawGrid()});
+  l.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{setQty(b.dataset.m,(S.cart[b.dataset.m]||0)-1);cartCount()?openCart():(l.innerHTML='');drawGrid()});
+  $('#send').onclick=async()=>{
+    const btn=$('#send'); btn.disabled=true; btn.textContent='Отправляем…';
+    const who=$('#who').value.trim(); localStorage.setItem('sc_who',who);
+    let anon=localStorage.getItem('sc_anon'); if(!anon){anon='anon-'+uuid();localStorage.setItem('sc_anon',anon)}
+    // один ключ на одну «попытку» — повторное нажатие/сетевой повтор не создаст дубликат
+    if(!S.pendingKey) S.pendingKey=uuid();
+    try{
+      const o=await Data.createOrder({key:S.pendingKey,date:S.orderDate,customer:who||anon,items:items.map(({dish,q})=>({dish_id:dish.id,quantity:q}))});
+      S.pendingKey=null; S.cart={}; lsSet('sc_cart',{}); updateCartBar();
+      const num_=o.public_order_number||o.id;
+      l.innerHTML=`<div class="overlay" style="align-items:center"><div class="modal"><h2>✅ Заказ принят</h2>
+        <p>Номер заказа: <b style="font-size:1.4rem">${esc(num_)}</b></p>
+        <p class="note">Выдача: ${esc(fmtDate(o.order_date||S.orderDate))}. Назовите номер при получении.</p>
+        <p>Сумма: <b>${money(o.total_amount)}</b></p>
+        <button class="btn" id="ok">Отлично</button></div></div>`;
+      $('#ok').onclick=()=>{l.innerHTML='';drawGrid()};
+    }catch(e){ btn.disabled=false; btn.textContent='Подтвердить предзаказ'; $('#err').innerHTML=`<div class="alert err">${esc(e.message)}</div>`; }
+  };
+}
+
+/* ============ COOK VIEW ============ */
+function renderCook(){
+  if(!S.authed && (LIVE||true)) return renderLogin();
+  $('#app').innerHTML=`
+   <h2>Панель повара</h2>
+   <div class="tabs">${[['orders','Заказы'],['proc','Закупки'],['prod','Производство и отходы'],['an','Аналитика']].map(([k,n])=>
+     `<button class="tab ${S.cookTab===k?'on':''}" data-t="${k}">${n}</button>`).join('')}
+     <button class="tab" id="logout">Выйти</button></div>
+   <div id="cookBody"></div>`;
+  $('#app').querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{S.cookTab=b.dataset.t;renderCook()});
+  $('#logout').onclick=()=>{S.authed=false;TOKEN='';localStorage.removeItem('sc_token');renderCook()};
+  ({orders:cookOrders,proc:cookProc,prod:cookProd,an:cookAnalytics})[S.cookTab]();
+}
+function renderLogin(){
+  $('#app').innerHTML=`<div class="panel" style="max-width:380px;margin:30px auto"><h2>Вход для персонала</h2>
+    ${LIVE?'':'<div class="alert">Демо-режим: достаточно нажать «Войти».</div>'}
+    <div class="field"><label>Логин</label><input id="u" autocomplete="username"></div>
+    <div class="field"><label>Пароль</label><input id="p" type="password" autocomplete="current-password"></div>
+    <div id="err"></div><button class="btn" id="go">Войти</button></div>`;
+  $('#go').onclick=async()=>{try{await Data.login($('#u').value,$('#p').value);renderCook()}catch(e){$('#err').innerHTML=`<div class="alert err">${esc(e.message)}</div>`}};
+}
+const dateField=(id,val)=>`<input type="date" id="${id}" value="${val}">`;
+
+async function cookOrders(){
+  const b=$('#cookBody');
+  b.innerHTML=`<div class="toolbar">${dateField('cd',S.cookDate)}
+    ${LIVE?'':'<button class="btn warn sm" id="seed">+ Демо-заказы (≈120 порций)</button><button class="btn ghost sm" id="clr">Очистить демо-данные</button>'}</div><div id="ob">Загрузка…</div>`;
+  $('#cd').onchange=e=>{S.cookDate=e.target.value;cookOrders()};
+  if(!LIVE){
+    $('#seed').onclick=()=>{ seedDemoOrders(S.cookDate); cookOrders(); };
+    $('#clr').onclick=()=>{['sc_orders','sc_prod','sc_waste'].forEach(k=>localStorage.removeItem(k));cookOrders()};
+  }
+  try{
+    const [sum,orders]=await Promise.all([Data.summary(S.cookDate),Data.orders(S.cookDate)]);
+    const tot=sum.reduce((s,r)=>s+num(r.portions),0);
+    $('#ob').innerHTML=`<div class="kpis"><div class="kpi"><b>${orders.filter(o=>o.status!=='cancelled').length}</b><span>активных заказов</span></div>
+      <div class="kpi"><b>${tot}</b><span>порций на ${esc(fmtDate(S.cookDate))}</span></div></div>
+      <div class="panel"><h3 style="margin-top:0">Сколько готовить</h3>${sum.length?`<div class="scroll"><table><tr><th>Блюдо</th><th class="num">Порций</th></tr>${sum.map(r=>`<tr><td>${esc(r.name)}</td><td class="num"><b>${r.portions}</b></td></tr>`).join('')}</table></div>`:'<p class="note">Заказов на эту дату пока нет.</p>'}</div>
+      <div class="panel"><h3 style="margin-top:0">Заказы</h3>${orders.length?`<div class="scroll"><table><tr><th>№</th><th>Состав</th><th class="num">Сумма</th><th>Статус</th><th></th></tr>${orders.map((o,i)=>`<tr><td>${esc(o.public_order_number||o.id)}</td>
+      <td>${esc((o.items||[]).map(x=>`${x.name||x.dish_name||'#'+x.dish_id} ×${x.quantity}`).join(', '))}</td><td class="num">${money(o.total_amount)}</td>
+      <td><span class="pill ${esc(o.status)}">${esc(STATUS_RU[o.status]||o.status)}</span></td>
+      <td style="white-space:nowrap">${o.status==='cancelled'||o.status==='completed'?'':
+        `${o.status==='pending'?`<button class="btn sm" data-a="confirm" data-c="${i}">Подтвердить</button> `:`<button class="btn sm" data-a="complete" data-c="${i}">Выдан</button> `}<button class="btn danger sm" data-a="cancel" data-c="${i}">Отменить</button>`}</td></tr>`).join('')}</table></div>`:'<p class="note">Нет заказов.</p>'}</div>`;
+    $('#ob').querySelectorAll('[data-c]').forEach(x=>x.onclick=async()=>{
+      const act=x.dataset.a; if(act==='cancel' && !confirm('Отменить заказ?'))return;
+      try{await Data.setStatus(orders[x.dataset.c],act);cookOrders()}catch(e){alert(e.message)} });
+  }catch(e){ $('#ob').innerHTML=`<div class="alert err">${esc(e.message)}</div>`; }
+}
+function seedDemoOrders(date){
+  const names=Object.keys(DEMO_REC); const orders=ls('sc_orders',[]); let portions=0, n=orders.length;
+  while(portions<120){
+    const items=[]; const k=1+Math.floor(Math.random()*3);
+    for(let j=0;j<k;j++){ const d=dishByName(names[Math.floor(Math.random()*names.length)]); const q=1+Math.floor(Math.random()*2);
+      if(!items.find(i=>i.dish_id===d.id)){items.push({dish_id:d.id,name:d.name,quantity:q,unit_sale_price:d.sale_price,line_total:num(d.sale_price)*q});portions+=q;} }
+    n++; orders.push({id:Date.now()+n,key:'seed-'+n+'-'+Date.now(),public_order_number:'SC-'+String(n).padStart(4,'0'),order_date:date,status:'confirmed',customer:'demo',items,total_amount:items.reduce((s,i)=>s+i.line_total,0),is_demo:true});
+  }
+  lsSet('sc_orders',orders);
+}
+
+async function cookProc(){
+  const b=$('#cookBody');
+  b.innerHTML=`<div class="toolbar">${dateField('pd',S.cookDate)}<button class="btn" id="calc">Рассчитать закупку</button></div>
+    ${LIVE?'':'<div class="alert">Демо-режим: считаются только блюда с демо-рецептами (плов, курица с рисом/картофелем, лагман, пюре, рис, салат из капусты, омлет). В режиме API весь расчёт делает бэкенд — фронтенд ничего не пересчитывает.</div>'}
+    <div id="pb"><p class="note">Нажмите «Рассчитать». Предварительный расчёт не меняет склад.</p></div>`;
+  $('#pd').onchange=e=>S.cookDate=e.target.value;
+  $('#calc').onclick=async()=>{
+    $('#pb').innerHTML='Считаем…';
+    try{
+      const r=await Data.procurement($('#pd').value);
+      const items=arr(r.items||r.lines);
+      const warns=[...arr(r.warnings), ...arr(r.dishes_requiring_recipe).map(d=>({dish:d.dish_name}))];
+      const kg=(v,u)=> (u==='g'||!u)?(num(v)/1000).toLocaleString('ru-RU',{maximumFractionDigits:2})+' кг':(u==='ml')?(num(v)/1000).toLocaleString('ru-RU',{maximumFractionDigits:2})+' л':num(v).toLocaleString('ru-RU')+' '+(UNIT_RU[u]||u);
+      const complete=r.total_is_complete!==false && !items.some(i=>i.status==='missing_price');
+      $('#pb').innerHTML=`${warns.length?`<div class="alert">${warns.map(w=>esc(typeof w==='string'?w:(w.dish?`${w.dish}: нет рецептуры (requiring_recipe), в расчёт не включено`:JSON.stringify(w)))).join('<br>')}</div>`:''}
+        ${!complete?'<div class="alert err">У части ингредиентов нет цены (missing_price) — итоговая стоимость неполная.</div>':''}
+        ${items.length?`<div class="panel scroll"><table><tr><th>Ингредиент</th><th class="num">Нужно</th><th class="num">На складе</th><th class="num">Закупить</th><th class="num">Упаковок</th><th class="num">Стоимость</th><th>Статус</th></tr>
+        ${items.map(i=>{const u=i.unit||'g';return `<tr><td>${esc(i.ingredient_name||i.name||i.ingredient_id)}</td>
+          <td class="num">${kg(i.required_quantity,u)}</td><td class="num">${kg(i.available_quantity,u)}</td>
+          <td class="num"><b>${kg(i.purchase_quantity,u)}</b></td><td class="num">${i.package_count??'—'}${i.package_size?` × ${kg(i.package_size,u)}`:''}</td>
+          <td class="num">${i.estimated_cost==null?'—':money(i.estimated_cost)}</td><td><span class="pill ${esc(i.status||'ok')}">${esc(PSTAT_RU[i.status||'ok']||i.status)}</span></td></tr>`}).join('')}
+        <tr><td colspan="5"><b>Итого${complete?'':' (неполное)'}</b></td><td class="num"><b>${money(r.total_estimated_cost)}</b></td><td></td></tr></table></div>`
+        :'<p class="note">Закупка не требуется или нет заказов на эту дату.</p>'}
+        ${LIVE&&items.length&&complete?'<button class="btn" id="approve">Утвердить план закупки</button> <span class="note">доступно экономисту и администратору</span>':''}`;
+      const ap=$('#approve'); if(ap) ap.onclick=async()=>{ try{ ap.disabled=true; const p=await http('/api/procurement-plan',{method:'POST',headers:{'Idempotency-Key':uuid()},body:JSON.stringify({date:$('#pd').value})}); ap.outerHTML=`<div class="alert okk">План утверждён (№ ${esc(p.id||'')}).</div>`; }catch(e){ap.disabled=false;alert(e.message)} };
+    }catch(e){ $('#pb').innerHTML=`<div class="alert err">${esc(e.message)}</div>`; }
+  };
+}
+
+function cookProd(){
+  const opts=S.menu.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
+  $('#cookBody').innerHTML=`<div class="row">
+   <div class="panel" style="flex:1;min-width:280px"><h3 style="margin-top:0">Итоги производства</h3>
+    <div class="field"><label>Блюдо</label><select id="pdish">${opts}</select></div>
+    <div class="field"><label>Дата</label>${dateField('pdate',addDays(0))}</div>
+    <div class="row"><div class="field"><label>Запланировано</label><input type="number" min="0" id="p1" value="0"></div>
+      <div class="field"><label>Приготовлено</label><input type="number" min="0" id="p2" value="0"></div></div>
+    <div class="row"><div class="field"><label>Выдано</label><input type="number" min="0" id="p3" value="0"></div>
+      <div class="field"><label>Осталось</label><input type="number" min="0" id="p4" value="0"></div></div>
+    <div class="field"><label>Выброшено порций</label><input type="number" min="0" id="p5" value="0"></div>
+    <div id="pmsg"></div><button class="btn" id="psave">Сохранить</button></div>
+   <div class="panel" style="flex:1;min-width:280px"><h3 style="margin-top:0">Списать отход</h3>
+    <div class="field"><label>Блюдо</label><select id="wdish">${opts}</select></div>
+    <div class="row"><div class="field"><label>Порций</label><input type="number" min="0" step="1" id="wq" value="1"></div>
+      ${LIVE?'':'<div class="field"><label>Оценка стоимости (KGS)</label><input type="number" min="0" step="0.01" id="wc" value="0"></div>'}</div>
+    <div class="field"><label>Причина</label><select id="wr"><option>Не раскупили</option><option>Испортилось</option><option>Брак при приготовлении</option><option>Другое</option></select></div>
+    <div id="wmsg"></div><button class="btn warn" id="wsave">Списать</button></div></div>`;
+  const msg=(id,t,ok)=>$(id).innerHTML=`<div class="alert ${ok?'okk':'err'}">${esc(t)}</div>`;
+  const nonneg=ids=>ids.every(i=>num($(i).value)>=0);
+  $('#psave').onclick=async()=>{
+    if(!nonneg(['#p1','#p2','#p3','#p4','#p5'])) return msg('#pmsg','Количество не может быть отрицательным');
+    const bt=$('#psave'); if(bt.disabled) return; bt.disabled=true;
+    try{ await Data.saveProduction({dish_id:+$('#pdish').value,production_date:$('#pdate').value,planned_portions:+$('#p1').value,prepared_portions:+$('#p2').value,served_portions:+$('#p3').value,leftover_portions:+$('#p4').value,discarded_portions:+$('#p5').value}); msg('#pmsg','Сохранено',true);}catch(e){msg('#pmsg',e.message)} finally{bt.disabled=false} };
+  $('#wsave').onclick=async()=>{
+    if(!(num($('#wq').value)>0)) return msg('#wmsg','Укажите количество больше нуля');
+    const bw=$('#wsave'); if(bw.disabled) return; bw.disabled=true;
+    try{ await Data.saveWaste({dish_id:+$('#wdish').value,quantity:+$('#wq').value,unit:'portion',reason:$('#wr').value,estimated_cost:$('#wc')?+$('#wc').value:0,waste_date:addDays(0)}); msg('#wmsg','Отход записан',true);}catch(e){msg('#wmsg',e.message)} finally{bw.disabled=false} };
+}
+
+async function cookAnalytics(){
+  const from=addDays(-30),to=addDays(7);
+  $('#cookBody').innerHTML='Загрузка…';
+  try{
+    const {pop,waste}=await Data.analytics(from,to);
+    const demoSw = LIVE ? `<label class="note" style="display:block;margin-bottom:10px"><input type="checkbox" id="incDemo" ${S.includeDemo?'checked':''}> Включить демонстрационные данные (по умолчанию — только реальные)</label>` : '';
+    const items=arr(pop.items||pop.dishes||pop); const max=Math.max(1,...items.map(i=>num(i.portions_sold??i.portions)));
+    const msgs=(pop.notes||[]).filter(Boolean);
+    $('#cookBody').innerHTML=`${demoSw}${msgs.map(m=>`<div class="alert">${esc(m)}</div>`).join('')}
+     <div class="kpis"><div class="kpi"><b>${waste.waste_percent==null?'—':num(waste.waste_percent).toFixed(1)+'%'}</b><span>отходов от приготовленного</span></div>
+      <div class="kpi"><b>${money(waste.total_cost)}</b><span>стоимость отходов</span></div>
+      <div class="kpi"><b>${items.reduce((s,i)=>s+num(i.portions_sold??i.portions),0)}</b><span>порций заказано</span></div></div>
+     <div class="panel"><h3 style="margin-top:0">Популярность блюд (${esc(from)} … ${esc(to)})</h3>
+      ${items.length?items.slice(0,15).map(i=>{const p=num(i.portions_sold??i.portions);return `<div class="bar-row"><div class="lbl" title="${esc(i.dish_name||i.name)}">${esc(i.dish_name||i.name)}</div><div class="bar-o"><div class="bar-i" style="width:${p/max*100}%"></div></div><b>${p}</b></div>`}).join(''):'<p class="note">Недостаточно истории для надёжных выводов.</p>'}
+     </div>`;
+    const cb=$('#incDemo'); if(cb) cb.onchange=()=>{S.includeDemo=cb.checked;cookAnalytics()};
+  }catch(e){ $('#cookBody').innerHTML=`<div class="alert err">${esc(e.message)}</div>`; }
+}
+
+/* ============ ROUTER / INIT ============ */
+function render(){
+  $('#roleSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.role===S.role));
+  S.role==='student'?renderStudent():renderCook();
+  updateCartBar();
+}
+$('#roleSeg').onclick=e=>{const r=e.target.dataset.role; if(r){S.role=r;render()}};
+$('#openCart').onclick=openCart;
+$('#modeBadge').onclick=async()=>{
+  const v=prompt('Адрес backend API (например http://localhost:8000):',CFG.API);
+  if(v){ localStorage.setItem('sc_api',v.replace(/\/$/,'')); await boot(); }
+};
+async function boot(){ await detectLive(); await Data.load(); render(); }
+boot();
+</script>
+</body>
+</html>
