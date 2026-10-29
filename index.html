@@ -111,7 +111,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 <script>
 /* ============ CONFIG ============ */
 // Адрес backend API по умолчанию. Для сайта в интернете замените на домен API, например 'https://api.example.com'
-const DEFAULT_API = 'http://localhost:8000';
+const DEFAULT_API = 'https://smart-canteen-api-kh73.onrender.com';
 const CFG = { get API(){ return localStorage.getItem('sc_api') || DEFAULT_API; } };
 // Фото блюд: файл img/<slug>.jpg рядом с index.html (slug — из API, например img/plov.jpg).
 // Если у блюда в базе задан image_url, используется он. Нет фото — показывается значок категории.
@@ -160,12 +160,21 @@ async function http(path, opts={}){
   return (j && typeof j==='object' && 'data' in j) ? j.data : j;   // все ответы бэкенда: {data, meta}
 }
 async function detectLive(){
-  try{
-    const c = new AbortController(); const t=setTimeout(()=>c.abort(),2500);
-    const r = await fetch(CFG.API+'/health',{signal:c.signal}); clearTimeout(t);
-    LIVE = r.ok;
-  }catch{ LIVE=false; }
   const b=$('#modeBadge');
+  const remote=!/^https?:\/\/(localhost|127\.|\[::1\])/.test(CFG.API);
+  // Бесплатный хостинг «засыпает» и просыпается до минуты — для удалённого API ждём дольше, прежде чем уйти в демо-режим
+  const deadline=Date.now()+(remote?75000:2500);
+  LIVE=false;
+  while(true){
+    try{
+      const c=new AbortController(); const t=setTimeout(()=>c.abort(),remote?10000:2500);
+      const r=await fetch(CFG.API+'/health',{signal:c.signal}); clearTimeout(t);
+      if(r.ok){ LIVE=true; break; }
+    }catch{}
+    if(Date.now()>=deadline) break;
+    b.textContent='… Сервер просыпается, подождите';
+    await new Promise(r=>setTimeout(r,2000));
+  }
   b.textContent = LIVE ? '● API подключён' : '○ Демо-режим (API недоступен)';
   b.className = 'badge'+(LIVE?' live':'');
 }
@@ -680,7 +689,7 @@ $('#modeBadge').onclick=async()=>{
   const v=prompt('Адрес backend API (например http://localhost:8000):',CFG.API);
   if(v){ localStorage.setItem('sc_api',v.replace(/\/$/,'')); await boot(); }
 };
-async function boot(){ await detectLive(); await Data.load(); render(); }
+async function boot(){ $('#app').innerHTML='<p class="note">Подключаюсь к серверу…</p>'; await detectLive(); await Data.load(); render(); }
 boot();
 </script>
 </body>
