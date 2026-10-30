@@ -397,7 +397,7 @@ const Data = {
     });
     let total=0, unknown=false;
     const items=Object.entries(need).map(([id,g])=>{
-      const [name,priceKg,pack,stockKg]=DEMO_ING[id];
+      const [name,priceKg,pack,defStockKg]=DEMO_ING[id]; const stockKg=(ls('sc_stock',{})[id]??defStockKg);
       const stock=Math.round(stockKg*1000), packG=Math.round(pack*1000);
       const net=Math.max(0,g-stock), cnt=net? Math.ceil(net/packG):0, buy=cnt*packG;
       const cost = priceKg==null?null:Math.round(buy/1000*priceKg*100)/100;
@@ -405,6 +405,15 @@ const Data = {
       return {ingredient_name:name,unit:'g',required_quantity:g,available_quantity:stock,purchase_quantity:buy,package_size:packG,package_count:cnt,estimated_cost:cost,status:cost==null?'missing_price':'ok'};
     });
     return {plan_date:date,items,total_estimated_cost:total,total_is_complete:!unknown,warnings:warn,is_preview:true,demo:true};
+  },
+  async inventory(){
+    if(LIVE) return arr(await http('/api/inventory'));
+    const own=ls('sc_stock',{});
+    return Object.entries(DEMO_ING).map(([id,[name,,,kg]])=>({id,name,unit:'g',stock_quantity:Math.round((own[id]??kg)*1000),minimum_stock:0}));
+  },
+  async saveStock(items){   // items: [{id, quantity}] в единице учёта (г / мл / шт)
+    if(LIVE) return http('/api/inventory/stock',{method:'PUT',body:JSON.stringify({items:items.map(i=>({ingredient_id:i.id,quantity:i.quantity}))})});
+    const own=ls('sc_stock',{}); items.forEach(i=>own[i.id]=num(i.quantity)/1000); lsSet('sc_stock',own);
   },
   async saveProduction(p){
     if(LIVE) return http('/api/production',{method:'POST',body:JSON.stringify({...p,idempotency_key:uuid()})});
@@ -545,13 +554,13 @@ function renderCook(){
   if(!S.authed && (LIVE||true)) return renderLogin();
   $('#app').innerHTML=`
    <h2>Панель повара</h2>
-   <div class="tabs">${[['orders','Заказы'],['proc','Закупки'],['prod','Производство и отходы'],['an','Аналитика']].map(([k,n])=>
+   <div class="tabs">${[['orders','Заказы'],['stock','Склад'],['proc','Закупки'],['prod','Производство и отходы'],['an','Аналитика']].map(([k,n])=>
      `<button class="tab ${S.cookTab===k?'on':''}" data-t="${k}">${n}</button>`).join('')}
      <button class="tab" id="logout">Выйти</button></div>
    <div id="cookBody"></div>`;
   $('#app').querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{S.cookTab=b.dataset.t;renderCook()});
   $('#logout').onclick=()=>{S.authed=false;TOKEN='';localStorage.removeItem('sc_token');renderCook()};
-  ({orders:cookOrders,proc:cookProc,prod:cookProd,an:cookAnalytics})[S.cookTab]();
+  ({orders:cookOrders,stock:cookStock,proc:cookProc,prod:cookProd,an:cookAnalytics})[S.cookTab]();
 }
 function renderLogin(){
   $('#app').innerHTML=`<div class="panel" style="max-width:380px;margin:30px auto"><h2>Вход для персонала</h2>
@@ -597,6 +606,45 @@ function seedDemoOrders(date){
     n++; orders.push({id:Date.now()+n,key:'seed-'+n+'-'+Date.now(),public_order_number:'SC-'+String(n).padStart(4,'0'),order_date:date,status:'confirmed',customer:'demo',items,total_amount:items.reduce((s,i)=>s+i.line_total,0),is_demo:true});
   }
   lsSet('sc_orders',orders);
+}
+
+/* Склад: повар вводит фактические остатки сам. Показываем кг / л / шт, на сервер уходят г / мл / шт. */
+const STOCK_DIV = {g:1000, ml:1000, pcs:1}, STOCK_UNIT = {g:'кг', ml:'л', pcs:'шт'};
+async function cookStock(){
+  const b=$('#cookBody'); b.innerHTML='Загрузка…';
+  let rows;
+  try{ rows=await Data.inventory(); }catch(e){ b.innerHTML=`<div class="alert err">${esc(e.message)}</div>`; return; }
+  const view=r=>{ const d=STOCK_DIV[r.unit]||1; return Math.round(num(r.stock_quantity)/d*1000)/1000; };
+  b.innerHTML=`<div class="toolbar"><input type="search" id="sq" placeholder="Поиск продукта…">
+      <button class="btn" id="ssave">Сохранить остатки</button></div>
+    ${LIVE?'':'<div class="alert">Демо-режим: остатки хранятся только в этом браузере.</div>'}
+    <p class="note">Введите фактическое количество каждого продукта на складе (кг, л или шт). Сохраняются только изменённые строки. Каждое изменение записывается в журнал склада.</p>
+    <div id="smsg"></div>
+    <div class="panel scroll"><table><tr><th>Продукт</th><th class="num">Сейчас на складе</th><th class="num">Новый остаток</th><th>Ед.</th></tr>
+    ${rows.map(r=>{ const v=view(r); return `<tr data-name="${esc(String(r.name).toLowerCase())}">
+      <td>${esc(r.name)}${r.below_minimum?' <span class="pill missing_price">ниже минимума</span>':''}</td>
+      <td class="num">${v.toLocaleString('ru-RU',{maximumFractionDigits:3})}</td>
+      <td class="num"><input type="number" min="0" step="0.001" class="stk" data-id="${esc(r.id)}" data-unit="${esc(r.unit)}" data-orig="${v}" value="${v}" style="width:110px;text-align:right"></td>
+      <td>${esc(STOCK_UNIT[r.unit]||r.unit)}</td></tr>`}).join('')}</table></div>`;
+  $('#sq').oninput=e=>{ const q=e.target.value.trim().toLowerCase(); b.querySelectorAll('tr[data-name]').forEach(tr=>tr.style.display=tr.dataset.name.includes(q)?'':'none'); };
+  const msg=(t,ok)=>$('#smsg').innerHTML=`<div class="alert ${ok?'okk':'err'}">${esc(t)}</div>`;
+  $('#ssave').onclick=async()=>{
+    const items=[]; let bad=false;
+    b.querySelectorAll('input.stk').forEach(inp=>{
+      const v=parseFloat(String(inp.value).replace(',','.'));
+      if(inp.value.trim()===''||!isFinite(v)||v<0){ bad=true; inp.style.outline='2px solid #c0392b'; return; }
+      inp.style.outline='';
+      if(Math.abs(v-parseFloat(inp.dataset.orig))>1e-9){
+        const d=STOCK_DIV[inp.dataset.unit]||1;
+        items.push({id:/^\d+$/.test(inp.dataset.id)?+inp.dataset.id:inp.dataset.id, quantity:(Math.round(v*d*1000)/1000).toFixed(3)});
+      }
+    });
+    if(bad) return msg('Проверьте поля: остаток должен быть числом от нуля.');
+    if(!items.length) return msg('Нет изменённых остатков.');
+    const bt=$('#ssave'); bt.disabled=true;
+    try{ await Data.saveStock(items); await cookStock(); $('#smsg').innerHTML=`<div class="alert okk">Сохранено позиций: ${items.length}</div>`; }
+    catch(e){ msg(e.message); bt.disabled=false; }
+  };
 }
 
 async function cookProc(){
